@@ -1,4 +1,6 @@
+import json
 import re
+from datetime import datetime, timezone
 from html import unescape
 from xml.etree import ElementTree
 
@@ -8,6 +10,9 @@ from fastmcp import FastMCP
 mcp = FastMCP(name="AWS What's New")
 
 AWS_WHATS_NEW_RSS = "https://aws.amazon.com/about-aws/whats-new/recent/feed/"
+AWS_HEALTH_EVENTS = "https://health.aws.amazon.com/public/currentevents"
+
+STATUS_MAP = {"0": "resolved", "1": "informational", "2": "degraded", "3": "disruption"}
 
 
 def _strip_html(text: str) -> str:
@@ -51,6 +56,41 @@ async def fetch_aws_news(count: int = 10) -> list[dict]:
             "description": _strip_html(item.findtext("description", "")),
         }
         for item in items
+    ]
+
+
+@mcp.tool
+async def fetch_aws_status() -> list[dict]:
+    """Fetch current AWS service disruptions from the AWS Health Dashboard.
+
+    Returns active events only. An empty list means all services are operating normally.
+    """
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(AWS_HEALTH_EVENTS, timeout=30)
+        resp.raise_for_status()
+
+    events = json.loads(resp.content.decode("utf-16"))
+
+    return [
+        {
+            "region": event["region_name"],
+            "service": event["service_name"],
+            "summary": event["summary"],
+            "status": STATUS_MAP.get(event["status"], event["status"]),
+            "started": datetime.fromtimestamp(
+                int(event["date"]), tz=timezone.utc
+            ).isoformat(),
+            "latest_update": event["event_log"][-1]["message"] if event.get("event_log") else "",
+            "impacted_services": [
+                {
+                    "name": s["service_name"],
+                    "current": STATUS_MAP.get(s["current"], s["current"]),
+                    "max": STATUS_MAP.get(s["max"], s["max"]),
+                }
+                for s in event.get("impacted_services", {}).values()
+            ],
+        }
+        for event in events
     ]
 
 
