@@ -3,7 +3,17 @@ name = "aws-whats-new-mcp"
 version = "0.1.0"
 description = "MCP server that fetches AWS What's New announcements"
 requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Paulo Pereira" }]
+keywords = ["mcp", "aws", "news", "rss"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+]
 dependencies = [
     "fastmcp>=2.0.0",
     "httpx>=0.27.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/paulosergio-jnr/aws-whats-new-mcp"
